@@ -1,4 +1,4 @@
-const errorTypes = require ('../constants/error-types');
+const errorTypes  = require ('../constants/error-types');
 const service = require ('../service/user.service');
 const md5Password = require ('../utils/password-handle');
 const verifyUser = async (ctx, next) => {
