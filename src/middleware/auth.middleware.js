@@ -1,8 +1,9 @@
 const jwt = require ('jsonwebtoken');
 const errorTypes = require ('../constants/error-types');
-const service = require ('../service/user.service');
+const userService = require ('../service/user.service');
 const md5Password = require ('../utils/password-handle');
 const {PUBLIC_KEY} = require ('../app/config');
+const authService = require ('../service/auth.service');
 const verifyLogin = async (ctx, next) => {
   // 获取用户名、密码
   const {name, password} = ctx.request.body;
@@ -12,7 +13,7 @@ const verifyLogin = async (ctx, next) => {
     return ctx.app.emit ('error', error, ctx)
   }
   // 判断用户名是否存在
-  const result = await service.getUserByName (name);
+  const result = await userService.getUserByName (name);
   const user = result[0];
   if (!user) {
     const err = new Error (errorTypes.USER_DOES_NOT_EXISTS)
@@ -30,18 +31,42 @@ const verifyAuth = async (ctx, next) => {
   // 1.获取token
   const authorization = ctx.headers.authorization;
   if (!authorization) {
-    const error = new Error(errorTypes.UNAUTHORIZATION);
-    return ctx.app.emit('error', error, ctx);
+    const error = new Error (errorTypes.UNAUTHORIZATION);
+    return ctx.app.emit ('error', error, ctx);
   }
-  const token = authorization.replace('Bearer ', '');
+  const token = authorization.replace ('Bearer ', '');
   // 2.验证token(id/name/iat/exp)
   try {
-    const result = jwt.verify(token, PUBLIC_KEY, {algorithms: ["RS256"]});
+    const result = jwt.verify (token, PUBLIC_KEY, {algorithms: ["RS256"]});
     ctx.user = result;
-    await next();
+    await next ();
   } catch (err) {
-    const error = new Error(errorTypes.UNAUTHORIZATION);
-    ctx.app.emit('error', error, ctx);
+    const error = new Error (errorTypes.UNAUTHORIZATION);
+    ctx.app.emit ('error', error, ctx);
   }
 }
-module.exports = {verifyLogin, verifyAuth}
+const verifyPermission = async (ctx, next) => {
+  console.log("验证权限的middleware~");
+
+  // 1.获取参数 { commentId: '1' }
+  const [resourceKey] = Object.keys(ctx.params);
+  const tableName = resourceKey.replace('Id', '');
+  const resourceId = ctx.params[resourceKey];
+  const { id } = ctx.user;
+
+  // 2.查询是否具备权限
+  try {
+    const isPermission = await authService.checkMoment(tableName, resourceId, id);
+    if (!isPermission) throw new Error();
+    await next();
+  } catch (err) {
+    const error = new Error(errorTypes.UNPERMISSION);
+    return ctx.app.emit('error', error, ctx);
+  }
+}
+
+module.exports = {
+  verifyLogin,
+  verifyAuth,
+  verifyPermission
+}
