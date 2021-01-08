@@ -9,7 +9,7 @@ const uploadMulter = Multer ({
 const pictureUpload = Multer({
   dest: PICTURE_PATH
 });
-const avatarHanler = uploadMulter.single ('avatar');
+const avatarHanler = uploadMulter.any ('avatar');
 const pictureHandler = pictureUpload.array('picture', 9);
 const pictureResize = async (ctx, next) => {
   try {
